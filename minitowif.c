@@ -335,40 +335,6 @@ int pubkey_to_address(char **address, unsigned char *pubkey, int keylen)
 	return(0);
 }
 
-INT_PTR CALLBACK WIFKeyDlgProc(HWND hDlg, UINT msg, WPARAM wParam, LPARAM lParam)
-{
-	switch(msg)
-	{
-		case WM_INITDIALOG:
-		{
-			if(!SendMessage(GetDlgItem(hDlg, ID_KEY_DLG_WIFKEY_EDIT_CTL), WM_SETTEXT, MAKEWPARAM(FALSE, 0), lParam))
-			{
-				MessageBox(hDlg, TEXT("Error displaying key."), TEXT("Error"), MB_OK | MB_ICONERROR);
-				EndDialog(hDlg, 0);
-			}
-			SendMessage(GetDlgItem(hDlg, ID_KEY_DLG_WIFKEY_EDIT_CTL), WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), MAKELPARAM(FALSE, 0));
-			SendMessage(GetDlgItem(hDlg, ID_KEY_DLG_OK_BTN), WM_SETFONT, (WPARAM)GetStockObject(DEFAULT_GUI_FONT), MAKELPARAM(FALSE, 0));
-			return(TRUE);
-		}
-		case WM_COMMAND:
-		{
-			if((HIWORD(wParam) == BN_CLICKED) && (LOWORD(wParam) == ID_KEY_DLG_OK_BTN))
-			{
-				EndDialog(hDlg, 0);
-				return(TRUE);
-			}
-			else
-			{
-				return(FALSE);
-			}
-		}
-		default:
-			return(FALSE);
-	}
-	
-	return(FALSE);
-}
-
 LRESULT WINAPI MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	HWND hInputEditCtl, hWIFKeyEditCtl, hAddrEditCtl;
@@ -462,7 +428,7 @@ LRESULT WINAPI MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 					MessageBox(hwnd, TEXT("Error converting private key to wallet import format."), TEXT("Error"), MB_OK | MB_ICONERROR);
 					break;
 				}
-								
+				
 				len2 = ecdsa_get_pubkey(&pubkey, privkey, len2);
 				
 				pubkey_to_address(&addr, pubkey, len2);

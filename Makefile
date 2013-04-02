@@ -1,6 +1,6 @@
 CC		= gcc
 RC		= windres
-CFLAGS	= -I. -L. -Wl,--subsystem,windows -s -Wall -Wextra -Werror -std=c11 -pedantic
+CFLAGS	= -I. -L. -Wl,--subsystem,windows -s -Wall -Wextra -std=c11 -pedantic
 LIBS	= -lcrypto -lgdi32
 
 all:

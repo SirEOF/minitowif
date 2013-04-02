@@ -73,6 +73,58 @@ int is_valid_minikey(char *minikey)
 	else return(0);
 }
 
+int base58encode(char **base58str, unsigned char *data, int datalen)
+{
+	BN_CTX *bnctx;
+	int i, ret, zeroes;
+	BIGNUM *bndata, *tmp, *divisor;
+	char *buf = (char *)malloc(sizeof(char) * (datalen * 5));	// Fix this
+	
+	for(i = 0, zeroes = 0; i < datalen; i++)
+	{
+		if(!data[i]) zeroes++;
+		else break;
+	}
+	
+	bnctx = BN_CTX_new();
+	divisor = BN_new();
+	tmp = BN_new();
+	
+	BN_dec2bn(&divisor, "58");
+	bndata = BN_bin2bn(data, datalen, NULL);
+	
+	for(i = 0; !BN_is_zero(bndata); i++)
+	{
+		BN_div(bndata, tmp, bndata, divisor, bnctx);			// Is using data twice legal?
+		BN_bn2bin(tmp, (unsigned char *)&ret);					// The modulus can't be more than 4 bytes
+		buf[i] = base58[ret];
+	}
+	
+	BN_CTX_free(bnctx);
+	BN_free(divisor);
+	BN_free(tmp);
+	BN_free(bndata);
+	
+	while(zeroes--)
+		buf[i++] = base58[0];
+	
+	// Earlier for loop tacked on one extra
+	datalen = ret = (i - 1);
+	
+	*base58str = (char *)malloc(sizeof(char) * (i + 1));
+	
+	// Copy string in reverse
+	for(i = 0; i <= datalen && ret >= 0; i++, ret--)
+		(*base58str)[i] = buf[ret];
+	
+	// NULL terminate
+	(*base58str)[i] = 0x00;
+	
+	// Cleanup and return
+	free(buf);
+	return(i);
+}
+
 /*
 	Assumes privkey has enough room
 	Does not check minikey for validity
@@ -100,11 +152,8 @@ int minikey_to_private_key(char *minikey, unsigned char *privkey)
 
 int private_key_to_wif(char **wifkey, unsigned char *privkey, int keylen)
 {
-	BN_CTX *bnctx;
-	int i, zeroes;
 	EVP_MD_CTX ctx;
 	unsigned int ret;
-	BIGNUM *key, *tmp, *divisor;
 	unsigned char *extkey, hash[EVP_MAX_MD_SIZE];
 	
 	// A Base58 private key is 50 characters
@@ -156,98 +205,7 @@ int private_key_to_wif(char **wifkey, unsigned char *privkey, int keylen)
 	memcpy(extkey + keylen, hash, 4);
 	keylen += 4;
 	
-	// Have to skip the beginning 0x80 when counting the zeroes
-	for(i = 1, zeroes = 0; i < keylen; i++)
-	{
-		if(!extkey[i]) zeroes++;
-		else break;
-	}
-	
-	divisor = NULL;
-	
-	bnctx = BN_CTX_new();
-	if(!bnctx)
-	{
-		free(extkey);
-		return(-1);
-	}
-	
-	tmp = BN_new();
-	if(!tmp)
-	{
-		BN_CTX_free(bnctx);
-		free(extkey);
-		return(-1);
-	}
-	
-	key = BN_bin2bn(extkey, keylen, NULL);
-	if(!key)
-	{
-		BN_CTX_free(bnctx);
-		BN_free(tmp);
-		free(extkey);
-		return(-1);
-	}
-	
-	if(!BN_dec2bn(&divisor, "58"))
-	{
-		BN_CTX_free(bnctx);
-		BN_free(tmp);
-		BN_free(key);
-		free(extkey);
-		return(-1);
-	}
-	
-	for(i = 0; !BN_is_zero(key); i++)
-	{
-		if(!BN_div(key, tmp, key, divisor, bnctx))	// Is using key twice legal?
-		{
-			BN_CTX_free(bnctx);
-			BN_free(tmp);
-			BN_free(key);
-			BN_free(divisor);
-			free(extkey);
-			return(-1);
-		}
-		
-		if(BN_num_bytes(tmp) > 4)
-		{
-			BN_CTX_free(bnctx);
-			BN_free(tmp);
-			BN_free(key);
-			BN_free(divisor);
-			free(extkey);
-			return(-1);
-		}
-		
-		BN_bn2bin(tmp, (unsigned char *)&ret);
-		extkey[i] = base58[ret];
-	}
-	
-	BN_CTX_free(bnctx);
-	BN_free(divisor);
-	BN_free(tmp);
-	BN_free(key);
-	
-	while(zeroes--)
-		extkey[i++] = base58[0];
-	
-	// Note that the i++ adds an extra 1; it must be subtracted.
-	keylen = i - 1;
-	
-	// Allocate space for final key
-	*wifkey = (char *)malloc(sizeof(char) * (keylen + 2));
-	
-	// Copy string in reverse
-	for(i = 0, zeroes = keylen; i <= keylen && zeroes >= 0; i++, zeroes--)
-		(*wifkey)[i] = extkey[zeroes];
-	
-	// NULL terminate
-	(*wifkey)[i] = 0x00;
-	
-	// Cleanup and return
-	free(extkey);
-	return(i);
+	return(base58encode(wifkey, extkey, keylen));
 }
 
 int ecdsa_get_pubkey(unsigned char **pubkey, unsigned char *rawprivkey, int keylen)
@@ -277,11 +235,9 @@ int ecdsa_get_pubkey(unsigned char **pubkey, unsigned char *rawprivkey, int keyl
 
 int pubkey_to_address(char **address, unsigned char *pubkey, int keylen)
 {
-	BN_CTX *bnctx;
 	int i, zeroes;
 	EVP_MD_CTX ctx;
 	unsigned int ret;
-	BIGNUM *bnpubkey, *tmp, *divisor;
 	unsigned char hash[EVP_MAX_MD_SIZE], tmp1[EVP_MAX_MD_SIZE], tmp2[EVP_MAX_MD_SIZE];
 	
 	EVP_DigestInit(&ctx, EVP_sha256());
@@ -306,7 +262,8 @@ int pubkey_to_address(char **address, unsigned char *pubkey, int keylen)
 	
 	for(i = 0, zeroes = 0; tmp2[i] == 0x00; i++, zeroes++);
 	
-	bnctx = BN_CTX_new();
+	base58encode(address, tmp2, RIPEMD160_DIGEST_LENGTH + 5);
+	/*bnctx = BN_CTX_new();
 	tmp = BN_new();
 	bnpubkey = BN_bin2bn(tmp2, RIPEMD160_DIGEST_LENGTH + 5, NULL);
 	divisor = NULL;
@@ -330,7 +287,7 @@ int pubkey_to_address(char **address, unsigned char *pubkey, int keylen)
 		(*address)[i] = hash[zeroes];
 	
 	// NULL terminate
-	(*address)[i] = 0x00;
+	(*address)[i] = 0x00;*/
 	
 	return(0);
 }

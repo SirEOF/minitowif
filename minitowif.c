@@ -95,7 +95,7 @@ int base58encode(char **base58str, unsigned char *data, int datalen)
 	
 	for(i = 0; !BN_is_zero(bndata); i++)
 	{
-		BN_div(bndata, tmp, bndata, divisor, bnctx);			// Is using data twice legal?
+		BN_div(bndata, tmp, bndata, divisor, bnctx);			// Is using bndata twice legal?
 		BN_bn2bin(tmp, (unsigned char *)&ret);					// The modulus can't be more than 4 bytes
 		buf[i] = base58[ret];
 	}
@@ -263,31 +263,6 @@ int pubkey_to_address(char **address, unsigned char *pubkey, int keylen)
 	for(i = 0, zeroes = 0; tmp2[i] == 0x00; i++, zeroes++);
 	
 	base58encode(address, tmp2, RIPEMD160_DIGEST_LENGTH + 5);
-	/*bnctx = BN_CTX_new();
-	tmp = BN_new();
-	bnpubkey = BN_bin2bn(tmp2, RIPEMD160_DIGEST_LENGTH + 5, NULL);
-	divisor = NULL;
-	BN_dec2bn(&divisor, "58");
-	for(i = 0; !BN_is_zero(bnpubkey); i++)
-	{
-		BN_div(bnpubkey, tmp, bnpubkey, divisor, bnctx);
-		BN_bn2bin(tmp, (unsigned char *)&ret);
-		hash[i] = base58[ret];
-	}
-	
-	for(ret = 0; (int)ret < zeroes; ret++, i++)
-		hash[i] = base58[0];
-	
-	keylen = i - 1;
-	
-	*address = (char *)malloc(sizeof(char) * (keylen + 1));
-	
-	// Copy in reverse
-	for(i = 0, zeroes = keylen; zeroes >= 0; i++, zeroes--)
-		(*address)[i] = hash[zeroes];
-	
-	// NULL terminate
-	(*address)[i] = 0x00;*/
 	
 	return(0);
 }

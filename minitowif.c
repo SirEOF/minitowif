@@ -324,7 +324,7 @@ LRESULT WINAPI MainWndProc(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam)
 				hWIFKeyEditCtl = GetDlgItem(hwnd, ID_WINDOW_WIFKEY_EDITCTL);
 				hAddrEditCtl = GetDlgItem(hwnd, ID_WINDOW_ADDR_EDITCTL);
 				
-				if(!GetWindowText(hInputEditCtl, MiniKey, 31))
+				if(!GetWindowTextA(hInputEditCtl, MiniKey, 31))
 				{
 					SetWindowText(hWIFKeyEditCtl, TEXT("Minikey is invalid."));
 					break;
